@@ -1,5 +1,6 @@
 import sqlite3 as sl
 import math
+from queue import PriorityQueue
 
 con = sl.connect(':memory:')
 columns = []
@@ -30,32 +31,44 @@ def read(filename):
             con.execute("INSERT INTO data (" + values + ") VALUES (%s)" % ','.join(params), terms)
             pass
 
-def entropy(limits, column):
+def entropy(limit):
+    column = columns[len(columns)-1]
     i = 0
-    limit = ""
 
-    if(limits):
-        limit = "WHERE"
-        for pair in limits:
-            limit += " " + pair[0] + "='" + pair[1] + "' AND"
-            limit = limit[:-3]
-
-    values = con.execute("SELECT " + column + ", COUNT(*) as [Count] FROM data " + limit + "GROUP BY " + column + "order by [Count] desc").fetchall()
-    total = con.execute("SELECT COUNT(*) from data").fetchall()[0][0]
+    values = con.execute("SELECT " + column + ", COUNT(*) as [Count] FROM data " + limit + "GROUP BY " + column + " order by [Count] desc").fetchall()
+    total = con.execute("SELECT COUNT(*) from data " + limit).fetchall()[0][0]
     for pair in values:
         ratio = pair[1]/total
         i -= ratio * math.log(ratio)
     return i
 
-def find_optimal_attribute(columns):
+def find_optimal_attribute(columns, limits):
+    limit = "WHERE"
+    if limits:
+        for pair in limits:
+            # 5 characters are always removed in case limits is empty so 2 spaces are put in front of AND
+            limit += " " + pair[0] + "='" + pair[1] + "' AND  "
+            # limit = limit[:-5]
+
+    best = PriorityQueue()
     for i in range(len(columns)-1):
-        print(str(i) + " " + columns[i])
-    return 1
+        values = con.execute("SELECT " + columns[i] + ", COUNT(*) as [Count] FROM data " 
+                             + limit[:-5] + "GROUP BY " + columns[i] + " order by [Count] desc").fetchall()
+        total = con.execute("SELECT COUNT(*) from data " + limit[:-5]).fetchall()[0][0]
+        loss = 0
+        for pair in values:
+            loss += (pair[1]/total) * entropy(limit + " " + columns[i] + "='" + pair[0] + "' ")
+        best.put((loss, columns[i]))
+
+    return(best.get()[1])
 
 def train():
-    gain = entropy([], columns[len(columns)-1])
-
-    print(gain)
+    print(find_optimal_attribute(columns, []))
+    # make tree based off that attribute
+    # remove that attribute from the attribute pool
+    # for each split in tree
+    # find optimal attribute
+    # limit that split
 
 def main():
     init_sql("data-desc.txt")
