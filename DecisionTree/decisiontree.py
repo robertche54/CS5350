@@ -5,6 +5,14 @@ from queue import PriorityQueue
 con = sl.connect(':memory:')
 columns = []
 
+class Node:
+    thresholds = {}
+    pivot = ""
+
+    def evaluate(values):
+        return thresholds[values[pivot]]
+    pass
+
 def init_sql(filename):
     global columns
     with open("DecisionTree/" + filename, 'r') as f:
@@ -62,8 +70,9 @@ def find_optimal_attribute(columns, limits):
 
     return(best.get()[1])
 
-def train():
-    print(find_optimal_attribute(columns, []))
+def build_tree(depth):
+    current = find_optimal_attribute(columns, [])
+    newcolumns = columns.copy().remove(current)
     # make tree based off that attribute
     # remove that attribute from the attribute pool
     # for each split in tree
@@ -73,6 +82,6 @@ def train():
 def main():
     init_sql("data-desc.txt")
     read("train.csv")
-    train()
+    build_tree(-1)
 
 main()
