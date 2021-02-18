@@ -67,7 +67,7 @@ def predict(filename):
     for sample in data:
         if root.evaluate(sample) == sample[attributes[len(attributes)-1]]:
             acc += 1
-    return acc/len(attributes)
+    return acc/len(data)
 
 def make_limit(limits):
     limit = "WHERE"
@@ -169,9 +169,17 @@ def learn(max_depth, gain):
     build_tree(root, new_columns, [], max_depth, gain)
 
 def test(gain):
+    testing = []
+    print("Testing with training data")
     for i in range (6, 0, -1):
         learn(i, gain)
-        print(str(gain) + " " + str(i) + " " + str(predict("test.csv")))
+        print(str(gain) + " " + str(i) + " " + str(predict("train.csv")))
+        testing.append(str(gain) + " " + str(i) + " " + str(predict("test.csv")))
+    print()
+    print("Testing with testing data")
+    for line in testing:
+        print(line)
+    print()
 
 def main():
     init_sql("data-desc.txt")
