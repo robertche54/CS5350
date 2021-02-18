@@ -63,9 +63,11 @@ def predict(filename):
             pass
         pass
 
+    acc = 0
     for sample in data:
-        print(sample)
-        print(root.evaluate(sample))
+        if root.evaluate(sample) == sample[attributes[len(attributes)-1]]:
+            acc += 1
+    return acc/len(attributes)
 
 def make_limit(limits):
     limit = "WHERE"
@@ -87,18 +89,39 @@ def entropy(limit):
         i -= ratio * math.log(ratio)
     return i
 
+def majority_error(limit):
+    label = attributes[len(attributes)-1]
+    i = 0
+    values = con.execute("SELECT " + label + ", COUNT(*) as [Count] FROM data " 
+                         + limit + "GROUP BY " + label + " order by [Count] desc").fetchall()
+    total = con.execute("SELECT COUNT(*) from data " + limit).fetchall()[0][0]
+    values.sort(key=lambda x:x[1])
+    return values[0][1]/total
+
+def gini_index(limit):
+    label = attributes[len(attributes)-1]
+    i = 0
+    values = con.execute("SELECT " + label + ", COUNT(*) as [Count] FROM data " 
+                         + limit + "GROUP BY " + label + " order by [Count] desc").fetchall()
+    total = con.execute("SELECT COUNT(*) from data " + limit).fetchall()[0][0]
+    for pair in values:
+        i += math.pow(pair[1]/total, 2)
+    return 1-i
+
 def mode(column, limits):
     limit = make_limit(limits)[:-5]
     values = con.execute("SELECT " + column + ", COUNT(*) as [Count] FROM data " 
                          + limit + "GROUP BY " + column + " order by [Count] desc").fetchall()
-    mode = values[0][0]
+    if (len(values) == 0):
+        return (mode(column, [])[0], True)
+    most = values[0][0]
     largest = values[0][1]
     for pair in values:
         if pair[1] > largest:
-            mode = pair[0]
-    return (mode, len(values) == 1)
+            most = pair[0]
+    return (most, len(values) == 1)
 
-def find_optimal_attribute(columns, limits):
+def find_optimal_attribute(columns, limits, gain):
     limit = make_limit(limits)
     best = PriorityQueue()
     for i in range(len(columns)):
@@ -107,54 +130,55 @@ def find_optimal_attribute(columns, limits):
         total = con.execute("SELECT COUNT(*) from data " + limit[:-5]).fetchall()[0][0]
         loss = 0
         for pair in values:
-            loss += (pair[1]/total) * entropy(limit + " " + columns[i] + "='" + pair[0] + "' ")
+            loss += (pair[1]/total) * eval(gain + "(\"" + limit + " " + columns[i] + "='" + pair[0] + "' " + "\")")
+            #loss += (pair[1]/total) * entropy(limit + " " + columns[i] + "='" + pair[0] + "' ")
         best.put((loss, columns[i]))
         pass
 
     return(best.get()[1])
 
-def build_tree(current, columns, limits, depth):
+def build_tree(current, columns, limits, depth, gain):
     depth -= 1
-    values = con.execute("SELECT DISTINCT " + current.pivot + " FROM data " + make_limit(limits)[:-5]).fetchall()
+    values = con.execute("SELECT DISTINCT " + current.pivot + " FROM data").fetchall()
+    #+ make_limit(limits)[:-5]
     for value in values:
         new_limits = limits.copy()
         new_limits.append((current.pivot, value[0]))
         labels = mode(attributes[len(attributes)-1], new_limits)
 
         if depth == 0 or labels[1]:
-            if(value[0] == 'big' and current.pivot == "persons"):
-                print(current.pivot)
             #current.thresholds[value[0]] = labels[0]
             current.add_node(value[0], labels[0])
         else:
             new_columns = columns.copy()
-            next = find_optimal_attribute(new_columns, new_limits)
+            next = find_optimal_attribute(new_columns, new_limits, gain)
             new_columns.remove(next)
             leaf = Node(next)
-            build_tree(leaf, new_columns, new_limits, depth)
+            build_tree(leaf, new_columns, new_limits, depth, gain)
             #current.thresholds[value[0]] = leaf
             current.add_node(value[0], leaf)
-
-        for n in nodelist:
-            if not n.valid():
-                print("INVALID")
         pass
 
-def learn(max_depth):
+def learn(max_depth, gain):
     global root
     new_columns = attributes.copy()
     new_columns.pop()
-    current = find_optimal_attribute(new_columns, [])
+    current = find_optimal_attribute(new_columns, [], gain)
     new_columns.remove(current)
     root = Node(current)
-    build_tree(root, new_columns, [], max_depth)
+    build_tree(root, new_columns, [], max_depth, gain)
+
+def test(gain):
+    for i in range (6, 0, -1):
+        learn(i, gain)
+        print(str(gain) + " " + str(i) + " " + str(predict("test.csv")))
 
 def main():
     init_sql("data-desc.txt")
     read("train.csv")
-    learn(-1)
-    predict("test.csv")
+    test("entropy")
+    test("majority_error")
+    test("gini_index")
 
 main()
-    
     
