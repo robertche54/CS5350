@@ -5,9 +5,9 @@ from queue import PriorityQueue
 con = sl.connect(':memory:')
 root = object()
 attributes = []
+to_process = []
 
 class Node():
-
     def __init__(self, pivot):
         self.thresholds = {}
         self.pivot = pivot
@@ -26,13 +26,28 @@ class Node():
 
 def init_sql(filename):
     global attributes
+    global to_process
     with open("DecisionTree/" + filename, 'r') as f:
-        line = f.readlines()[-1]
-        attributes = line.split(',')
+        line = f.readline()
+        attributes = line.split(';')
+        line = f.readline()
+        terms = line.split(';')
+        # Find which integer columns need processing
+        for i in range(len(terms)):
+            if not terms[i].startswith('"'):
+                to_process.append(i)
         pass
 
     values = ""
-    for column in attributes:
+    for i in range(len(attributes)):
+        # Strip quotes messing with sql syntax
+        column = attributes[i][1:-1]
+        # I give up
+        if column == "y\"":
+            column = "label"
+        if column == "default":
+            column = "def"
+        attributes[i] = column
         values += column + " TEXT, "
     values = values[:-2]
 
@@ -40,22 +55,32 @@ def init_sql(filename):
         con.execute(""" 
             CREATE TABLE data ( id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
             """ + values + " ) ")
-        #print(con.execute("DESCRIBE data").fetchall())
 
 def read(filename):
     with open ("DecisionTree/" + filename, 'r') as f:
+        # Because first line contains attributes
+        next(f)
         for line in f:
-            terms = line.strip().split(',')
-            values = ', '.join(attributes)[:-1]
+            terms = line.strip().split(';')
+            # Strip quotes messing with sql syntax
+            for i in range(len(terms)):
+                if terms[i].startswith('"') and terms[i].endswith('"'):
+                    terms[i] = terms[i][1:-1]
+            values = ', '.join(attributes)
             params = ['?' for item in terms]
             con.execute("INSERT INTO data (" + values + ") VALUES (%s)" % ','.join(params), terms)
             pass
 
+def post_process(replace_unknown):
+    pass
+
 def predict(filename):
     data = []
     with open ("DecisionTree/" + filename, 'r') as f:
+        # Because first line contains attributes
+        next(f)
         for line in f:
-            terms = line.strip().split(',')
+            terms = line.strip().split(';')
             sample = {}
             for i in range(len(terms)):
                 sample[attributes[i]] = terms[i]
@@ -139,6 +164,7 @@ def find_optimal_attribute(columns, limits, gain):
 
 def build_tree(current, columns, limits, depth, gain):
     depth -= 1
+    # print(str(depth) + str(limits))
     values = con.execute("SELECT DISTINCT " + current.pivot + " FROM data").fetchall()
     #+ make_limit(limits)[:-5]
     for value in values:
@@ -171,17 +197,19 @@ def learn(max_depth, gain):
 def test(gain):
     print("size | training    | test (" + gain + ")")
     print("-----------------------------------------")
-    for i in range (6, 0, -1):
+    for i in range (12, 0, -1):
         learn(i, gain)
-        print(str(i) + "    | " + '%-12f%-12s' % (predict("train.csv"), "| " + str(predict("test.csv"))))
+        print(str(i) + "    | " + '%-12f%-12s' % (predict("bank.csv"), "| " + str(predict("bank-full.csv"))))
     print()
 
 def main():
-    init_sql("data-desc.txt")
-    read("train.csv")
-    test("entropy")
-    test("majority_error")
-    test("gini_index")
+    init_sql("bank.csv")
+    read("bank.csv")
+    post_process(False)
+    learn(-1, "entropy")
+    #test("entropy")
+    #test("majority_error")
+    #test("gini_index")
 
 main()
     
