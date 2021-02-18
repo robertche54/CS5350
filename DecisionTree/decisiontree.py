@@ -1,11 +1,14 @@
 import sqlite3 as sl
 import math
+import statistics
 from queue import PriorityQueue
 
 con = sl.connect(':memory:')
 root = object()
 attributes = []
 to_process = []
+medians = {}
+modes = {}
 
 class Node():
     def __init__(self, pivot):
@@ -72,17 +75,38 @@ def read(filename):
             pass
 
 def post_process(replace_unknown):
-    pass
+    global medians
+    for i in range(len(attributes)):
+        if i in to_process:
+            values = con.execute("SELECT " + attributes[i] + " FROM data").fetchall()
+            median = str(statistics.median(values)[0])
+            medians[i] = median
+            con.execute("UPDATE data SET " + attributes[i] + " = CASE WHEN " + attributes[i] + " >= " + median + " THEN 1 ELSE 0 END")
+        else:
+            most = mode(attributes[i], [])
+            modes[i] = most[0]
+            con.execute("UPDATE data SET " + attributes[i] + " = '" + most[0] + "' WHERE " + attributes[i] + " = 'unknown'")
+        pass
 
 def predict(filename):
     data = []
+
     with open ("DecisionTree/" + filename, 'r') as f:
         # Because first line contains attributes
         next(f)
         for line in f:
             terms = line.strip().split(';')
+            # Strip quotes messing with sql syntax
+            for i in range(len(terms)):
+                if terms[i].startswith('"') and terms[i].endswith('"'):
+                    terms[i] = terms[i][1:-1]
             sample = {}
             for i in range(len(terms)):
+                if i in to_process:
+                    # Python is a horrible language
+                    terms[i] = str(int(terms[i] >= medians[i]))
+                elif terms[i] == "unknown":
+                    terms[i] = modes[i]
                 sample[attributes[i]] = terms[i]
             data.append(sample)
             pass
@@ -167,12 +191,14 @@ def build_tree(current, columns, limits, depth, gain):
     # print(str(depth) + str(limits))
     values = con.execute("SELECT DISTINCT " + current.pivot + " FROM data").fetchall()
     #+ make_limit(limits)[:-5]
+    if "unknown" not in values:
+        values.append("unknown")
     for value in values:
         new_limits = limits.copy()
         new_limits.append((current.pivot, value[0]))
         labels = mode(attributes[len(attributes)-1], new_limits)
 
-        if depth == 0 or labels[1]:
+        if depth == 0 or labels[1] or len(columns) == 0:
             #current.thresholds[value[0]] = labels[0]
             current.add_node(value[0], labels[0])
         else:
@@ -200,16 +226,17 @@ def test(gain):
     for i in range (12, 0, -1):
         learn(i, gain)
         print(str(i) + "    | " + '%-12f%-12s' % (predict("bank.csv"), "| " + str(predict("bank-full.csv"))))
+        #print(" \hline " + str(i) + " & " + str(predict("bank.csv")) +  " & " + str(predict("bank-full.csv")) + " \\\\")
     print()
 
 def main():
     init_sql("bank.csv")
     read("bank.csv")
     post_process(False)
-    learn(-1, "entropy")
-    #test("entropy")
-    #test("majority_error")
-    #test("gini_index")
+
+    test("entropy")
+    test("majority_error")
+    test("gini_index")
 
 main()
     
