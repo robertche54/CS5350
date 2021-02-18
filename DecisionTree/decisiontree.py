@@ -169,16 +169,11 @@ def learn(max_depth, gain):
     build_tree(root, new_columns, [], max_depth, gain)
 
 def test(gain):
-    testing = []
-    print("Testing with training data")
+    print("size | training    | test (" + gain + ")")
+    print("-----------------------------------------")
     for i in range (6, 0, -1):
         learn(i, gain)
-        print(str(gain) + " " + str(i) + " " + str(predict("train.csv")))
-        testing.append(str(gain) + " " + str(i) + " " + str(predict("test.csv")))
-    print()
-    print("Testing with testing data")
-    for line in testing:
-        print(line)
+        print(str(i) + "    | " + '%-12f%-12s' % (predict("train.csv"), "| " + str(predict("test.csv"))))
     print()
 
 def main():
