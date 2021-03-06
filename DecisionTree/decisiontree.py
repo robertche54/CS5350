@@ -1,6 +1,7 @@
 import sqlite3 as sl
 import math
 import statistics
+import sys 
 from queue import PriorityQueue
 
 con = sl.connect(':memory:')
@@ -85,7 +86,8 @@ def post_process(replace_unknown):
         else:
             most = mode(attributes[i], [])
             modes[i] = most[0]
-            con.execute("UPDATE data SET " + attributes[i] + " = '" + most[0] + "' WHERE " + attributes[i] + " = 'unknown'")
+            if replace_unknown:
+                con.execute("UPDATE data SET " + attributes[i] + " = '" + most[0] + "' WHERE " + attributes[i] + " = 'unknown'")
         pass
 
 def predict(filename):
@@ -220,23 +222,31 @@ def learn(max_depth, gain):
     root = Node(current)
     build_tree(root, new_columns, [], max_depth, gain)
 
-def test(gain):
+def test(gain, training_data, testing_data, max_size):
     print("size | training    | test (" + gain + ")")
     print("-----------------------------------------")
-    for i in range (12, 0, -1):
+    for i in range (max_size, 0, -1):
         learn(i, gain)
-        print(str(i) + "    | " + '%-12f%-12s' % (predict("bank.csv"), "| " + str(predict("bank-full.csv"))))
-        #print(" \hline " + str(i) + " & " + str(predict("bank.csv")) +  " & " + str(predict("bank-full.csv")) + " \\\\")
+        print(str(i) + "    | " + '%-12f%-12s' % (predict(training_data), "| " + str(predict(testing_data))))
+        #print(" \hline " + str(i) + " & " + str(predict(training_data)) +  " & " + str(predict(testing_data)) + " \\\\")
     print()
 
-def main():
-    init_sql("bank.csv")
-    read("bank.csv")
-    post_process(False)
+def main(argv):
 
-    test("entropy")
-    test("majority_error")
-    test("gini_index")
+    init_sql(argv[1])
+    read(argv[1])
+    post_process(argv[4] == "yes")
+    test(argv[3], argv[1], argv[2], int(argv[5]))
 
-main()
+    # init_sql("bank.csv")
+    # read("bank.csv")
+    # post_process(False)
+
+    # test("entropy")
+    # test("majority_error")
+    # test("gini_index")
+
+if __name__ == "__main__":
+    # argv = ["decisiontree.py", "bank.csv", "bank-full.csv", "entropy", "yes", "1"]
+    main(sys.argv)
     
