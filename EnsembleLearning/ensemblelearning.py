@@ -1,16 +1,48 @@
 import sqlite3 as sl
 import statistics
+import math
 
 con = sl.connect(':memory:')
 attributes = []
 to_process = []
+stumps = []
+weights = []
 medians = {}
 modes = {}
-weights = {}
 
 class Stump:
     
+    def _init_(self, pivot, classifier):
+        self.thresholds = {}
+        self.pivot = pivot
+        self.classifier = classifier
+        self.total_error = 0
+        
+        values = con.execute("SELECT DISTINCT " + pivot + " FROM data").fetchall()
+        label = attributes[len(attributes)-1]
+        for value in values:
+            yes = con.execute("SELECT COUNT(*) FROM data WHERE " + pivot + " = " + value[0] + 
+                              " AND " + label + " = " + classifier).fetchall()[0][0]
+            no = con.execute("SELECT COUNT(*) FROM data WHERE " + pivot + " = " + value[0] + 
+                             " AND " + label + " != " + classifier).fetchall()[0][0]
+            if yes >= no:
+               thresholds[value[0]] = 1
+               total_error += total_error("WHERE " + pivot + " = " + value[0] + " AND " + label + " != " + classifier)
+            else:
+               thresholds[value[0]] = 0
+               total_error += total_error("WHERE " + pivot + " = " + value[0] + " AND " + label + " = " + classifier)
+            pass
 
+        if self.total_error == 0:
+            self.total_error = 0.0000001
+        self.weight = 0.5 * math.log((1 - self.total_error)/self.total_error)
+
+    def total_error(limit):
+        error = 0
+        ids = con.execute("SELECT id FROM data " + limit).fetchall()
+        for id in ids:
+            error += weights[int(id)-1]
+        return error
 
     pass
 
@@ -64,7 +96,6 @@ def read(filename):
 
 def post_process(replace_unknown):
     global medians
-    global weights
     for i in range(len(attributes)):
         if i in to_process:
             values = con.execute("SELECT " + attributes[i] + " FROM data").fetchall()
@@ -76,11 +107,6 @@ def post_process(replace_unknown):
             modes[i] = most[0]
             if replace_unknown:
                 con.execute("UPDATE data SET " + attributes[i] + " = '" + most[0] + "' WHERE " + attributes[i] + " = 'unknown'")
-        pass
-
-    total = con.execute("SELECT COUNT(*) FROM data")[0][0]
-    for i in range(0, total-1):
-        weights[i] = float(1/total)
         pass
 
 def make_limit(limits):
@@ -103,19 +129,23 @@ def mode(column, limits):
     for pair in values:
         if pair[1] > largest:
             most = pair[0]
+            largest = pair[1]
     return (most, len(values) == 1)
 
-def gini_index(limit):
-    label = attributes[len(attributes)-1]
-    i = 0
-    values = con.execute("SELECT " + label + ", COUNT(*) as [Count] FROM data " 
-                         + limit + "GROUP BY " + label + " order by [Count] desc").fetchall()
-    total = con.execute("SELECT COUNT(*) from data " + limit).fetchall()[0][0]
-    for pair in values:
-        i += math.pow(pair[1]/total, 2)
-    return 1-i
+def recalculate_weights():
+    pass
 
-def learn():
+def learn(max_depth):
+    global weights
+    global stumps
+    stumps = []
+    total = con.execute("SELECT COUNT(*) FROM data")[0][0]
+    for i in range(0, total-1):
+        weights[i] = float(1/total)
+        pass
+
+
+
     pass
 
 def main():

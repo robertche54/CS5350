@@ -90,7 +90,7 @@ def post_process(replace_unknown):
                 con.execute("UPDATE data SET " + attributes[i] + " = '" + most[0] + "' WHERE " + attributes[i] + " = 'unknown'")
         pass
 
-def predict(filename):
+def predict(filename, replace_unknown):
     data = []
 
     with open ("DecisionTree/" + filename, 'r') as f:
@@ -107,7 +107,7 @@ def predict(filename):
                 if i in to_process:
                     # Python is a horrible language
                     terms[i] = str(int(terms[i] >= medians[i]))
-                elif terms[i] == "unknown":
+                elif replace_unknown and terms[i] == "unknown":
                     terms[i] = modes[i]
                 sample[attributes[i]] = terms[i]
             data.append(sample)
@@ -170,6 +170,7 @@ def mode(column, limits):
     for pair in values:
         if pair[1] > largest:
             most = pair[0]
+            largest = pair[1]
     return (most, len(values) == 1)
 
 def find_optimal_attribute(columns, limits, gain):
@@ -222,12 +223,12 @@ def learn(max_depth, gain):
     root = Node(current)
     build_tree(root, new_columns, [], max_depth, gain)
 
-def test(gain, training_data, testing_data, max_size):
+def test(gain, training_data, testing_data, replace_unknown, max_size):
     print("size | training    | test (" + gain + ")")
     print("-----------------------------------------")
     for i in range (max_size, 0, -1):
         learn(i, gain)
-        print(str(i) + "    | " + '%-12f%-12s' % (predict(training_data), "| " + str(predict(testing_data))))
+        print(str(i) + "    | " + '%-12f%-12s' % (predict(training_data, replace_unknown), "| " + str(predict(testing_data, replace_unknown))))
         #print(" \hline " + str(i) + " & " + str(predict(training_data)) +  " & " + str(predict(testing_data)) + " \\\\")
     print()
 
@@ -236,7 +237,7 @@ def main(argv):
     init_sql(argv[1])
     read(argv[1])
     post_process(argv[4] == "yes")
-    test(argv[3], argv[1], argv[2], int(argv[5]))
+    test(argv[3], argv[1], argv[2], argv[4] == "yes", int(argv[5]))
 
     # init_sql("bank.csv")
     # read("bank.csv")
