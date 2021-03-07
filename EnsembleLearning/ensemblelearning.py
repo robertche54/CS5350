@@ -10,9 +10,9 @@ weights = []
 medians = {}
 modes = {}
 
-class Stump:
+class Stump():
     
-    def _init_(self, pivot, classifier):
+    def __init__(self, pivot, classifier):
         self.thresholds = {}
         self.pivot = pivot
         self.classifier = classifier
@@ -21,27 +21,28 @@ class Stump:
         values = con.execute("SELECT DISTINCT " + pivot + " FROM data").fetchall()
         label = attributes[len(attributes)-1]
         for value in values:
-            yes = con.execute("SELECT COUNT(*) FROM data WHERE " + pivot + " = " + value[0] + 
-                              " AND " + label + " = " + classifier).fetchall()[0][0]
-            no = con.execute("SELECT COUNT(*) FROM data WHERE " + pivot + " = " + value[0] + 
-                             " AND " + label + " != " + classifier).fetchall()[0][0]
+            yes_limit = "WHERE " + pivot + " = '" + value[0] + "' AND " + label + " != '" + classifier + "'"
+            no_limit = "WHERE " + pivot + " = '" + value[0] + "' AND " + label + " = '" + classifier + "'"
+
+            yes = con.execute("SELECT COUNT(*) FROM data " + yes_limit).fetchall()[0][0]
+            no = con.execute("SELECT COUNT(*) FROM data " + no_limit).fetchall()[0][0]
             if yes >= no:
-               thresholds[value[0]] = 1
-               total_error += total_error("WHERE " + pivot + " = " + value[0] + " AND " + label + " != " + classifier)
+               self.thresholds[value[0]] = 1
+               self.total_error += self.weighted_error(no_limit)
             else:
-               thresholds[value[0]] = 0
-               total_error += total_error("WHERE " + pivot + " = " + value[0] + " AND " + label + " = " + classifier)
+               self.thresholds[value[0]] = 0
+               self.total_error += self.weighted_error(yes_limit)
             pass
 
         if self.total_error == 0:
             self.total_error = 0.0000001
         self.weight = 0.5 * math.log((1 - self.total_error)/self.total_error)
 
-    def total_error(limit):
+    def weighted_error(self, limit):
         error = 0
         ids = con.execute("SELECT id FROM data " + limit).fetchall()
         for id in ids:
-            error += weights[int(id)-1]
+            error += weights[int(id[0])-1]
         return error
 
     pass
@@ -133,22 +134,32 @@ def mode(column, limits):
     return (most, len(values) == 1)
 
 def recalculate_weights():
+
     pass
 
 def learn(max_depth):
     global weights
     global stumps
     stumps = []
-    total = con.execute("SELECT COUNT(*) FROM data")[0][0]
+    total = con.execute("SELECT COUNT(*) FROM data").fetchall()[0][0]
     for i in range(0, total-1):
-        weights[i] = float(1/total)
+        weights.append(float(1/total))
         pass
 
+    #smallest_error = 1
+    stump = Stump("housing", "yes")
+    print(stump.total_error)
+    print(stump.weight)
 
 
     pass
 
 def main():
+
+    init_sql("bank.csv")
+    read("bank.csv")
+    learn(1)
+
     pass
 
 main()
