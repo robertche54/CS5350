@@ -45,6 +45,9 @@ class Stump():
             error += weights[int(id[0])-1]
         return error
 
+    def evaluate(self, values):
+        return self.weight * self.thresholds[values[self.pivot]]
+
     pass
 
 def init_sql(filename):
@@ -133,11 +136,33 @@ def mode(column, limits):
             largest = pair[1]
     return (most, len(values) == 1)
 
-def recalculate_weights():
+def next_best_stump(classifier):
+    best_stump = Stump(attributes[0], classifier)
+    for i in range(1, len(attributes)-2):
+        next_stump = Stump(attributes[i], classifier)
+        if (next_stump.total_error < best_stump.total_error):
+            best_stump = next_stump
+    return best_stump
 
+def calculate_new_weights(stump, classifier):
+    label = attributes[len(attributes)-1]
+    weight_correct = math.exp(-stump.weight)
+    weight_incorrect = math.exp(stump.weight)
+    total = 0
+
+    values = con.execute("SELECT id, " + stump.pivot + ", " + label + " FROM data").fetchall()
+    for value in values:
+        if (stump.thresholds(value[1]) == 1 and value[2] == classifier) or (stump.thresholds(value[1]) == 0 and value[2] != classifier):
+            weights[value[0]] *= weight_correct
+        else:
+            weights[value[0]] *= weight_incorrect
+    total += weights[value[0]]
+      
+    for i in range(0, len(weights)-1):
+        weights[i] /= total
     pass
 
-def learn(max_depth):
+def learn(max_depth, classifier):
     global weights
     global stumps
     stumps = []
@@ -146,11 +171,10 @@ def learn(max_depth):
         weights.append(float(1/total))
         pass
 
-    #smallest_error = 1
-    stump = Stump("housing", "yes")
-    print(stump.total_error)
-    print(stump.weight)
-
+    for i in range(0, max_depth):
+        stump = next_best_stump(classifier)
+        stumps.append(stump)
+        calculate_new_weights(stump, classifier)
 
     pass
 
@@ -158,7 +182,8 @@ def main():
 
     init_sql("bank.csv")
     read("bank.csv")
-    learn(1)
+    
+    learn(1, "yes")
 
     pass
 
