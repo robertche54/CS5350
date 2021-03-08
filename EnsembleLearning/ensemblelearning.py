@@ -21,22 +21,28 @@ class Stump():
         values = con.execute("SELECT DISTINCT " + pivot + " FROM data").fetchall()
         label = attributes[len(attributes)-1]
         for value in values:
-            yes_limit = "WHERE " + pivot + " = '" + value[0] + "' AND " + label + " != '" + classifier + "'"
-            no_limit = "WHERE " + pivot + " = '" + value[0] + "' AND " + label + " = '" + classifier + "'"
+            limit = "WHERE " + pivot + " = '" + value[0] + "'"
 
-            yes = con.execute("SELECT COUNT(*) FROM data " + yes_limit).fetchall()[0][0]
-            no = con.execute("SELECT COUNT(*) FROM data " + no_limit).fetchall()[0][0]
+            yes_limit = " AND " + label + " = '" + classifier + "'"
+            no_limit = " AND " + label + " != '" + classifier + "'"
+
+            yes = con.execute("SELECT COUNT(*) FROM data " + limit + yes_limit).fetchall()[0][0]
+            no = con.execute("SELECT COUNT(*) FROM data " + limit + no_limit).fetchall()[0][0]
+
             if yes >= no:
                self.thresholds[value[0]] = 1
-               self.total_error += self.weighted_error(no_limit)
+               self.total_error += self.weighted_error(limit + no_limit)
             else:
-               self.thresholds[value[0]] = 0
-               self.total_error += self.weighted_error(yes_limit)
+               self.thresholds[value[0]] = -1
+               self.total_error += self.weighted_error(limit + yes_limit)
             pass
 
-        if self.total_error == 0:
-            self.total_error = 0.0000001
+        #if self.total_error == 0:
+        #    perfect stump has been found, divide by zero error!
+
+        print(self.total_error)
         self.weight = 0.5 * math.log((1 - self.total_error)/self.total_error)
+        pass
 
     def weighted_error(self, limit):
         error = 0
@@ -98,7 +104,45 @@ def read(filename):
             con.execute("INSERT INTO data (" + values + ") VALUES (%s)" % ','.join(params), terms)
             pass
 
-def post_process(replace_unknown):
+def evaluate(sample):
+    threshold = 0
+    for stump in stumps:
+        threshold += stump.evaluate(sample)
+    if (threshold >= 0 and stumps[0].classifier == sample[attributes[len(attributes)-1]]) or (threshold < 0 and stumps[0].classifier != sample[attributes[len(attributes)-1]]):
+        return 1
+    else:
+        return 0
+
+def predict(filename):
+    data = []
+
+    with open ("EnsembleLearning/" + filename, 'r') as f:
+        # Because first line contains attributes
+        next(f)
+        for line in f:
+            terms = line.strip().split(';')
+            # Strip quotes messing with sql syntax
+            for i in range(len(terms)):
+                if terms[i].startswith('"') and terms[i].endswith('"'):
+                    terms[i] = terms[i][1:-1]
+            sample = {}
+            for i in range(len(terms)):
+                if i in to_process:
+                    # Python is a horrible language
+                    terms[i] = str(int(terms[i] >= medians[i]))
+                elif terms[i] == "unknown":
+                    terms[i] = modes[i]
+                sample[attributes[i]] = terms[i]
+            data.append(sample)
+            pass
+        pass
+
+    acc = 0
+    for sample in data:
+        acc += evaluate(sample)
+    return acc/len(data)
+
+def post_process():
     global medians
     for i in range(len(attributes)):
         if i in to_process:
@@ -109,8 +153,7 @@ def post_process(replace_unknown):
         else:
             most = mode(attributes[i], [])
             modes[i] = most[0]
-            if replace_unknown:
-                con.execute("UPDATE data SET " + attributes[i] + " = '" + most[0] + "' WHERE " + attributes[i] + " = 'unknown'")
+            con.execute("UPDATE data SET " + attributes[i] + " = '" + most[0] + "' WHERE " + attributes[i] + " = 'unknown'")
         pass
 
 def make_limit(limits):
@@ -152,13 +195,13 @@ def calculate_new_weights(stump, classifier):
 
     values = con.execute("SELECT id, " + stump.pivot + ", " + label + " FROM data").fetchall()
     for value in values:
-        if (stump.thresholds(value[1]) == 1 and value[2] == classifier) or (stump.thresholds(value[1]) == 0 and value[2] != classifier):
-            weights[value[0]] *= weight_correct
+        if (stump.thresholds[value[1]] == 1 and value[2] == classifier) or (stump.thresholds[value[1]] == -1 and value[2] != classifier):
+            weights[value[0]-1] *= weight_correct
         else:
-            weights[value[0]] *= weight_incorrect
-    total += weights[value[0]]
-      
-    for i in range(0, len(weights)-1):
+            weights[value[0]-1] *= weight_incorrect
+        total += weights[value[0]-1]
+
+    for i in range(len(weights)):
         weights[i] /= total
     pass
 
@@ -167,11 +210,11 @@ def learn(max_depth, classifier):
     global stumps
     stumps = []
     total = con.execute("SELECT COUNT(*) FROM data").fetchall()[0][0]
-    for i in range(0, total-1):
+    for i in range(total):
         weights.append(float(1/total))
         pass
 
-    for i in range(0, max_depth):
+    for i in range(max_depth):
         stump = next_best_stump(classifier)
         stumps.append(stump)
         calculate_new_weights(stump, classifier)
@@ -182,8 +225,11 @@ def main():
 
     init_sql("bank.csv")
     read("bank.csv")
-    
-    learn(1, "yes")
+    post_process()
+
+    learn(10, "yes")
+
+    print(predict("bank.csv"))
 
     pass
 
