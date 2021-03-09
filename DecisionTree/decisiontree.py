@@ -80,7 +80,10 @@ def post_process(replace_unknown):
     for i in range(len(attributes)):
         if i in to_process:
             values = con.execute("SELECT " + attributes[i] + " FROM data").fetchall()
-            median = str(statistics.median(values)[0])
+            trim = []
+            for value in values:
+                trim.append(int(value[0]))
+            median = str(statistics.median(trim))
             medians[i] = median
             con.execute("UPDATE data SET " + attributes[i] + " = CASE WHEN " + attributes[i] + " >= " + median + " THEN 1 ELSE 0 END")
         else:
