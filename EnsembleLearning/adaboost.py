@@ -46,7 +46,6 @@ class Stump():
             yes_limit = " AND " + label + " = '" + classifier + "'"
             no_limit = " AND " + label + " != '" + classifier + "'"
 
-
             count = {"yes" : 0, "no" : 0}
             for pair in con.execute("SELECT id FROM data " + limit + yes_limit).fetchall():
                 count["yes"] += weights[int(pair[0])-1]
@@ -342,7 +341,8 @@ def learn(max_depth, classifier):
     #print("weights before : " + str(weights))
 
     for i in range(max_depth):
-        stump = best_gain_stump(classifier)
+        #stump = best_gain_stump(classifier)
+        stump = next_best_stump(classifier)
         #print("median chosen for patient weight: " + medians[2])
         #print("stump chosen: " + stump.pivot + " " + str(stump.weight) + " " + str(stump.total_error))
         calculate_new_weights(stump, classifier)
@@ -360,7 +360,7 @@ def main():
     #learn(10 , "yes")
     #print(predict("dummy_test.csv"))
         
-    for i in range(1, 501):
+    for i in range(275, 403):
         learn(i , "yes")
         print(str(i) + ", " + str(predict("train.csv")) + ", " + str(predict("test.csv")))
 
