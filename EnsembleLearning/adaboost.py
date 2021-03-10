@@ -360,12 +360,12 @@ def main():
     #learn(10 , "yes")
     #print(predict("dummy_test.csv"))
         
-    for i in range(491, 501):
+    for i in range(1, 501):
         learn(i , "yes")
         print(str(i) + ", " + str(predict("train.csv")) + ", " + str(predict("test.csv")))
 
-        #for stump in stumps:
-        #    print(stump.pivot + " " + str(stump.weight) + " " + str(stump.total_error))
-        #pass
+    # for stump in stumps:
+    #    print(stump.pivot + ", " + str(stump.weight) + ", " + str(stump.total_error))
+    # pass
 
 main()

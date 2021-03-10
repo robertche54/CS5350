@@ -18,16 +18,16 @@ def read(filename):
 
 def lms_gradients(weights):
     y = len(data[0])-1
-    gradients = [0] * (y+1)
+    gradients = [0] * y
     for t in range(len(data)):
         # Finds lms cost
-        wx = weights[y]
+        wx = 0 # weights[y]
         for i in range(y):
             wx += weights[i]*data[t][i]
             pass
         cost = data[t][y] - wx
         # Finds gradients per column by multiplying cost with value in data at column
-        gradients[y] -= cost
+        # gradients[y] -= cost
         for i in range(y):
             gradients[i] -= cost * data[t][i]
             pass
@@ -36,16 +36,17 @@ def lms_gradients(weights):
     pass
 
 def gradient_descent(iterations, r, weights = None):
+    y = len(data[0])-1
     # initialize weight at 0 and r at 1
     if weights is None:
-        weights = [0] * len(data[0])
+        weights = [0] * y
     prev_cost = 0
     while iterations != 0:
         new_weights = lms_gradients(weights)
         # Find normalization of vector weight difference
         # ||w_t - w_(t-1)||
         # norm = 0
-        for i in range(len(weights)):
+        for i in range(y):
            weights[i] -= r * new_weights[i]
         #   norm += math.pow((weights[i] - new_weights[i]), 2)
            pass
@@ -93,19 +94,19 @@ def stochastic_descent_all(iterations, r, weights = None):
 def stochastic_descent(iterations, r, weights = None):
     y = len(data[0])-1
     if weights is None:
-        weights = [0] * len(data[0])
+        weights = [0] * y
     prev_cost = 0
     while iterations != 0:
         # Get random training sample
         t = random.randint(0, len(data)-1)
         # Find lms cost for a row 
-        wx = weights[y]
+        wx = 0 # weights[y]
         for i in range(y):
             wx += weights[i]*data[t][i]
             pass
         cost = data[t][y] - wx
         # Update weight vector
-        weights[y] += r*cost
+        # weights[y] += r*cost
         for i in range(y):
             weights[i] += r*cost*data[t][i]
             pass
@@ -115,7 +116,6 @@ def stochastic_descent(iterations, r, weights = None):
         if abs(cost - prev_cost) < math.pow(10, -6):
             return weights
         prev_cost = cost
-        pass
         iterations -= 1
         pass
     return weights
@@ -125,7 +125,7 @@ def test(weights):
     y = len(data[0])-1
     cost = 0
     for line in data:
-        wx = weights[y]
+        wx = 0 # weights[y]
         for i in range(y):
             wx += weights[i]*line[i]
             pass
@@ -136,51 +136,42 @@ def test(weights):
 
 def solve_math():
     # Data is a size d x m matrix
-    y = len(data[0])
+    y = len(data[0])-1
 
     # Finds (X^T * X)^-1
     # Will be size d x d
-    # gramian = []
-    gramian = [[1/(sum(a*b for a,b in zip(row[:-1], column[:-1]))) for column in data] for row in data]
-    # for t in range(len(data)):
-        # A matrix times its self transposed will just be its row multiplied by every row
-    #     row = []
-    #     for x in range(len(data)):
-    #         element = 0
-    #         for i in range(y):
-    #             element += data[t][i] * data[x][i]
-    #             pass
-    #         # Add inverse to the new matrix
-    #         row.append(1/element)
-    #         pass
-    #     gramian.append(row)
-    #     pass
-
-    # xy = []
-    # Finds XY where y is size m x 1
+    gramian = [[0] * y for _ in range(y)]
+    
+    # Finds XY where Y is size m x 1
     # Will be size d x 1
-    for t in range(len(data)):
+    matrix = [0] * y
 
-        pass
+    for row in data:
+        for i in range(y):
+            matrix[i] += row[i]*row[y]
+            for t in range(y):
+                gramian[i][t] += row[i]*row[t]
+    gramian = [[1/element for element in row] for row in gramian]
 
+    # Finds (X^T * X)^-1 * XY
+    # Will be size d x 1
+    weights = [0] * y
+    for t in range(y):
+        for i in range(y):
+            weights[t] += gramian[t][i] * matrix[i]
+
+    return weights
     pass
 
 def main():
-    
-    # read("train.csv")
-    # weights = gradient_descent(-1, 0.0078125)
-    # print("weights : " + str(weights))
-    # read("test.csv")
-    # print("testing cost : " + str(test(weights)))
-
-    # read("train.csv")
-    # weights = stochastic_descent(-1, 0.015625)
-    # print("weights : " + str(weights))
-    # read("test.csv")
-    # print("testing cost : " + str(test(weights)))
 
     read("train.csv")
-    solve_math()
+    # weights = gradient_descent(-1, 0.0078125)
+    # weights = stochastic_descent(-1, 0.015625)
+    weights = solve_math()
+    print("weights : " + str(weights))
+    read("test.csv")
+    print("testing cost : " + str(test(weights)))
 
     pass
 
