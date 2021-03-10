@@ -360,7 +360,7 @@ def main():
     #learn(10 , "yes")
     #print(predict("dummy_test.csv"))
         
-    for i in range(275, 403):
+    for i in range(491, 501):
         learn(i , "yes")
         print(str(i) + ", " + str(predict("train.csv")) + ", " + str(predict("test.csv")))
 
