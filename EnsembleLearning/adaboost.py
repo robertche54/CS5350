@@ -2,6 +2,7 @@ import sqlite3 as sl
 import statistics
 import math
 import re
+import sys 
 import random
 
 con = sl.connect(':memory:')
@@ -97,7 +98,7 @@ class Stump():
 
 def init_sql(filename):
     global attributes
-    with open("EnsembleLearning/" + filename, 'r') as f:
+    with open(filename, 'r') as f:
         line = f.readline()
         attributes = line.split(';')
         line = f.readline()
@@ -129,7 +130,7 @@ def init_sql(filename):
     pass
 
 def read(filename):
-    with open ("EnsembleLearning/" + filename, 'r') as f:
+    with open (filename, 'r') as f:
         # Because first line contains attributes
         next(f)
         for line in f:
@@ -156,7 +157,7 @@ def evaluate(sample):
 def predict(filename):
     data = []
 
-    with open ("EnsembleLearning/" + filename, 'r') as f:
+    with open (filename, 'r') as f:
         # Because first line contains attributes
         next(f)
         for line in f:
@@ -351,21 +352,23 @@ def learn(max_depth, classifier):
         stumps.append(stump)
     pass
 
-def main():
-
-    init_sql("train.csv")
-    read("train.csv")
-    post_process()
-
-    #learn(10 , "yes")
-    #print(predict("dummy_test.csv"))
-        
-    for i in range(1, 501):
+def test(training_data, testing_data, max_size):
+    print("size | training    | test (adaboost)")
+    print("-----------------------------------------")
+    for i in range(1, max_size):
         learn(i , "yes")
-        print(str(i) + ", " + str(predict("train.csv")) + ", " + str(predict("test.csv")))
+        print('%-5i' % i + "| " + '%-12f%-12s' % (predict(training_data), "| " + str(predict(testing_data))))
+        #print(str(i) + ", " + str(predict(argv[1])) + ", " + str(predict(argv[2])))
+        pass
+    pass
 
-    # for stump in stumps:
-    #    print(stump.pivot + ", " + str(stump.weight) + ", " + str(stump.total_error))
-    # pass
+def main(argv):
+    init_sql(argv[1])
+    read(argv[1])
+    post_process()
+    test(argv[1], argv[2], argv[3])
+    pass
 
-main()
+if __name__ == "__main__":
+    #argv = ["adaboost.py", "EnsembleLearning/train.csv", "EnsembleLearning/test.csv", 500]
+    main(sys.argv)

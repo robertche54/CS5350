@@ -1,10 +1,11 @@
 import math
 import random
+import sys 
 
 data = []
 
 def read(filename):
-    with open ("LinearRegression/" + filename, 'r') as f:
+    with open (filename, 'r') as f:
         for line in f:
             terms = line.split(',')
             row = []
@@ -163,16 +164,33 @@ def solve_math():
     return weights
     pass
 
-def main():
-
-    read("train.csv")
-    # weights = gradient_descent(-1, 0.0078125)
-    # weights = stochastic_descent(-1, 0.015625)
-    weights = solve_math()
+def find(testing_data, training_data, mode, i, r):
+    weights = []
+    read(testing_data)
+    if mode == "gradient_descent":
+        if r is None:
+            r = 0.0078125
+        weights = gradient_descent(i, r)
+    elif argv[3] == "stochastic_descent":
+        if r is None:
+            r = 0.015625
+        weights = stochastic_descent(i, r)
+    else: #elif mode == "solve_math"
+        weights = solve_math()
     print("weights : " + str(weights))
-    read("test.csv")
+    read(training_data)
     print("testing cost : " + str(test(weights)))
-
     pass
 
-main()
+def main(argv):
+    r = None
+    i = -1
+    if len(argv) == 6:
+        r = float(argv[5])
+        i = int(argv[4])
+    find(argv[1], argv[2], argv[3], i, r)
+    pass
+
+if __name__ == "__main__":
+    #argv = ["linearregression.py", "LinearRegression/train.csv", "LinearRegression/test.csv", "gradient_descent", "-1", "0.0078125"]
+    main(sys.argv)

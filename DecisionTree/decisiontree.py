@@ -31,7 +31,7 @@ class Node():
 def init_sql(filename):
     global attributes
     global to_process
-    with open("DecisionTree/" + filename, 'r') as f:
+    with open(filename, 'r') as f:
         line = f.readline()
         attributes = line.split(';')
         line = f.readline()
@@ -61,7 +61,7 @@ def init_sql(filename):
             """ + values + " ) ")
 
 def read(filename):
-    with open ("DecisionTree/" + filename, 'r') as f:
+    with open (filename, 'r') as f:
         # Because first line contains attributes
         next(f)
         for line in f:
@@ -96,7 +96,7 @@ def post_process(replace_unknown):
 def predict(filename, replace_unknown):
     data = []
 
-    with open ("DecisionTree/" + filename, 'r') as f:
+    with open (filename, 'r') as f:
         # Because first line contains attributes
         next(f)
         for line in f:
@@ -231,7 +231,7 @@ def test(gain, training_data, testing_data, replace_unknown, max_size):
     print("-----------------------------------------")
     for i in range (max_size, 0, -1):
         learn(i, gain)
-        print(str(i) + "    | " + '%-12f%-12s' % (predict(training_data, replace_unknown), "| " + str(predict(testing_data, replace_unknown))))
+        print('%-5i' % i + "| " + '%-12f%-12s' % (predict(training_data, replace_unknown), "| " + str(predict(testing_data, replace_unknown))))
         #print(" \hline " + str(i) + " & " + str(predict(training_data)) +  " & " + str(predict(testing_data)) + " \\\\")
     print()
 
@@ -251,6 +251,6 @@ def main(argv):
     # test("gini_index")
 
 if __name__ == "__main__":
-    # argv = ["decisiontree.py", "bank.csv", "bank-full.csv", "entropy", "yes", "1"]
+    # argv = ["decisiontree.py", "DecisionTree/bank.csv", "DecisionTree/bank-full.csv", "entropy", "yes", "1"]
     main(sys.argv)
     

@@ -13,6 +13,8 @@ attributes = []
 to_process = []
 # List that holds all the tree roots
 trees = []
+# Tables at node
+tables = []
 # List of medians for columns that need to be processed
 medians = {}
 # Most frequent value in each column
@@ -29,7 +31,8 @@ class Node():
         self.pivot = pivot
 
     def evaluate(self, values):
-        value = self.thresholds[values[self.pivot]]
+        piv = values[self.pivot]
+        value = self.thresholds[piv]
         if(isinstance(value, Node)):
             return value.evaluate(values)
         else:
@@ -37,7 +40,6 @@ class Node():
 
     def add_node(self, key, node):
         self.thresholds[key] = node
-
     pass
 
 def init_sql(filename):
@@ -74,7 +76,6 @@ def init_sql(filename):
         con.execute(""" 
             CREATE TABLE bag ( id,
             """ + values + " ) ")
-        pass
     pass
 
 def read(filename):
@@ -104,7 +105,7 @@ def post_process():
             medians[i] = median
             con.execute("UPDATE data SET " + attributes[i] + " = CASE WHEN " + attributes[i] + " >= " + median + " THEN 1 ELSE 0 END")
         else:
-            most = mode(attributes[i], [])
+            most = mode(attributes[i], [], "data")
             modes[i] = most[0]
             con.execute("UPDATE data SET " + attributes[i] + " = '" + most[0] + "' WHERE " + attributes[i] + " = 'unknown'")
         pass
@@ -163,7 +164,7 @@ def make_limit(limits):
 def entropy(limit, table):
     label = attributes[len(attributes)-1]
     i = 0
-    values = con.execute("SELECT " + label + ", COUNT(*) as [Count] FROM " + table + " " 
+    values = con.execute("SELECT " + label + ", COUNT(*) as [Count] FROM " + table + " "
                          + limit + "GROUP BY " + label + " order by [Count] desc").fetchall()
     total = con.execute("SELECT COUNT(*) from " + table + " " + limit).fetchall()[0][0]
     for pair in values:
@@ -171,17 +172,17 @@ def entropy(limit, table):
         i -= ratio * math.log(ratio)
     return i
 
-def count(column, limits):
+def count(column, limits, table):
     limit = make_limit(limits)[:-5]
-    values = con.execute("SELECT " + column + ", COUNT(*) as [Count] FROM bag " 
+    values = con.execute("SELECT " + column + ", COUNT(*) as [Count] FROM " + table + " "
                          + limit + "GROUP BY " + column + " order by [Count] desc").fetchall()
-    total = con.execute("SELECT COUNT(*) FROM bag " + limit).fetchall()[0][0]
+    total = con.execute("SELECT COUNT(*) FROM " + table + " " + limit).fetchall()[0][0]
     counts = {}
     for pair in values:
         counts[pair[0]] = pair[1]/total
     return counts
 
-def mode(column, limits, table = "data"):
+def mode(column, limits, table):
     limit = make_limit(limits)[:-5]
     values = con.execute("SELECT " + column + ", COUNT(*) as [Count] FROM data " 
                          + limit + "GROUP BY " + column + " order by [Count] desc").fetchall()
@@ -195,7 +196,7 @@ def mode(column, limits, table = "data"):
             largest = pair[1]
     return (most, len(values) == 1)
 
-def find_optimal_attribute(columns, limits, table = "bag"):
+def find_optimal_attribute(columns, limits, table):
     limit = make_limit(limits)
     best = PriorityQueue()
     for i in range(len(columns)):
@@ -207,43 +208,47 @@ def find_optimal_attribute(columns, limits, table = "bag"):
             loss += (pair[1]/total) * entropy(limit + " " + columns[i] + "='" + pair[0] + "' ", table)
         best.put((loss, columns[i]))
         pass
-
     return(best.get()[1])
 
-def build_tree(current, columns, limits, depth):
+def build_tree(current, columns, limits, samples, depth):
     depth -= 1
-    # print(str(depth) + str(limits))
     values = con.execute("SELECT DISTINCT " + current.pivot + " FROM data").fetchall()
-    #+ make_limit(limits)[:-5]
     # if "unknown" not in values:
     #    values.append("unknown")
     for value in values:
         new_limits = limits.copy()
         new_limits.append((current.pivot, value[0]))
-        labels = mode(attributes[len(attributes)-1], new_limits, "bag")
+        labels = mode(attributes[len(attributes)-1], new_limits, "samples" + str(abs(depth+1)))
         if labels[1]:
             current.add_node(value[0], { labels[0] : 1 })
         elif depth == 0 or len(columns) == 0:
-            current.add_node(value[0], count(attributes[len(attributes)-1], new_limits))
+            current.add_node(value[0], count(attributes[len(attributes)-1], new_limits, "samples" + str(abs(depth+1))))
         else:
+            if depth not in tables:
+                make_samples(abs(depth), samples)
+                tables.append(depth)
             new_columns = columns.copy()
-            next = find_optimal_attribute(new_columns, new_limits)
+            next = find_optimal_attribute(new_columns, new_limits, "samples" + str(abs(depth)))
             new_columns.remove(next)
             leaf = Node(next)
-            build_tree(leaf, new_columns, new_limits, depth)
-            #current.thresholds[value[0]] = leaf
+            build_tree(leaf, new_columns, new_limits, samples, depth)
             current.add_node(value[0], leaf)
         pass
 
-def learn(max_depth, m):
-    new_columns = attributes.copy()
-    new_columns.pop()
+def make_samples(depth, g):
+    con.execute("DROP TABLE IF EXISTS samples" + str(depth))
+    values = ""
+    for i in range(len(attributes)):
+        column = attributes[i]
+        values += column + " TEXT, "
+    values = values[:-2]
+    con.execute("CREATE TABLE samples" + str(depth) + " ( id, " + values + " ) ")
+    for _ in range(g):
+        con.execute("INSERT INTO samples" + str(depth) + " SELECT * FROM bag ORDER BY random() LIMIT 1")
+    pass
 
-    #Create new table and select random samples m
+def make_bag(m, total):
     con.execute("DELETE FROM bag")
-    total = con.execute("SELECT COUNT(*) FROM data").fetchall()[0][0]
-    if m is None:
-        m = total
     ids = []
     dupes = {}
     for _ in range(m):
@@ -262,19 +267,34 @@ def learn(max_depth, m):
     for id in dupes:
         for _ in range(dupes[id]):
             con.execute("INSERT INTO bag SELECT * FROM data where id = '" + str(id) + "'")
+    pass
 
-    current = find_optimal_attribute(new_columns, [])
+def learn(max_depth, samples, m):
+    new_columns = attributes.copy()
+    new_columns.pop()
+
+    #Create new table and select random samples m
+    total = con.execute("SELECT COUNT(*) FROM data").fetchall()[0][0]
+    if m is None:
+        m = total
+
+    make_bag(m, total)
+    make_samples(max_depth, samples)
+    tables.append(max_depth)
+    current = find_optimal_attribute(new_columns, [], "samples" + str(abs(max_depth)))
     new_columns.remove(current)
     root = Node(current)
-    build_tree(root, new_columns, [], -1)
+    build_tree(root, new_columns, [], samples, -1)
     trees.append(root)
+    tables.clear()
+    pass
 
-def test(training_data, testing_data, m, max_size):
-    print("size | training    | test (bagging)")
+def test(training_data, testing_data, samples, m, max_size):
+    print("size | training    | test (random forest)")
     print("-----------------------------------------")
-    # f = open("bagging.txt", "w+")
+    # f = open("randomforest " + str(samples) + ".txt", "w+")
     for i in range(max_size):
-        learn(i+1, m)
+        learn(i+1, samples, m)
         line = '%-5i' % (i+1) + "| " + '%-12f%-12s' % (predict(training_data), "| " + str(predict(testing_data)))
         print(line)
         # f.write(line + str("\n"))
@@ -288,11 +308,11 @@ def main(argv):
     read(argv[1])
     post_process()
     m = None
-    if (len(argv) == 5):
-        m = argv[4]
-    test(argv[1], argv[2], m, argv[3])
+    if (len(argv) == 6):
+        m = argv[5]
+    test(argv[1], argv[2], argv[3], m, argv[4])
 
 if __name__ == "__main__":
-    # argv = ["bagging.py", "EnsembleLearning/train.csv", "EnsembleLearning/test.csv", 500, 5000]
+    # argv = ["randomforest.py", "EnsembleLearning/train.csv", "EnsembleLearning/test.csv", 4, 500, 5000]
     main(sys.argv)
     
