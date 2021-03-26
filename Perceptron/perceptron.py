@@ -1,4 +1,5 @@
 import random
+import math
 
 data = []
 
@@ -13,9 +14,15 @@ def read(filename):
             data.append(row)
             pass
         pass
+    post_process()
     pass
 
-def standard_perceptron(epochs, r, shuffle = False, weights = None):
+def post_process():
+    for i in range(len(data)):
+        data[i][-1] = 2*data[i][-1] - 1
+    pass
+
+def standard_perceptron(epochs, r, weights = None, shuffle = False):
     y = len(data[0])-1
     if weights is None:
         weights = [0] * y
@@ -36,24 +43,73 @@ def standard_perceptron(epochs, r, shuffle = False, weights = None):
         pass
     return weights
 
+def voted_perceptron(epochs, r, weights = None):
+    y = len(data[0])-1
+    if weights is None:
+        weights = [0] * y
+    votes = []
+    count = 0
+    while epochs != 0:
+        for i in range(len(data)):
+            # prediction = weights[y]
+            prediction = 0
+            for j in range(y):
+                prediction += data[i][j] * weights[j]
+            if prediction * data[i][y] <= 0:
+                votes.append((count, weights.copy()))
+                for j in range(y):
+                    weights[j] += r * data[i][y] * data[i][j]
+                count = 1
+            else:
+                count += 1
+            pass
+        epochs -= 1
+        pass
+    return votes
+
+def averaged_perceptron(epochs, r, weights = None):
+
+    pass
+
+def voted_test(votes):
+    acc = 0
+    for line in data:
+        prediction = 0
+        for m in range(len(votes)):
+            weight = 0
+            for i in range(len(votes[0][1])):
+                weight += line[i]*votes[m][1][i]
+            prediction += votes[m][0] * math.copysign(1, weight)
+            pass
+        if prediction * line[-1] >= 0:
+            acc += 1
+        pass
+    return acc/len(data)
+
 def test(weights):
     acc = 0
     for line in data:
         prediction = 0
         for i in range(len(weights)):
             prediction += weights[i] * line[i]
-        if prediction * line[len(line)-1] >= 0:
+        if prediction * line[-1] >= 0:
             acc += 1
         pass
     return acc/len(data)
 
 def main():
-    read("Perceptron/train.csv")
-    weights = standard_perceptron(10, 0.01)
-    print(weights)
-    read("Perceptron/test.csv")
-    print(test(weights))
-    pass
+    # read("Perceptron/train.csv")
+    # weights = standard_perceptron(10, 0.01)
+    # print(weights)
+    # read("Perceptron/test.csv")
+    # print(test(weights))
 
+    read("Perceptron/train.csv")
+    weights = voted_perceptron(10, 0.01)
+    for line in weights:
+        print(line)
+    read("Perceptron/test.csv")
+    print(voted_test(weights))
+    pass
 
 main()
