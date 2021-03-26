@@ -37,3 +37,15 @@ linearregression.py training_data.csv testing_data.csv mode iterations ratio
 - ratio (optional) = multiplies the weights, will use the pre-selected ones by default
 ###### Example
 `linearregression.py train.csv test.csv gradient_descent -1 0.0078125`
+
+## Perceptron
+
+training_data.csv and testing_data.csv should be in the same directory as perceptron.py <br />
+```
+perceptron.py training_data.csv testing_data.csv mode epochs ratio
+```
+- mode = standard_perceptron, voted_perceptron, average_perceptron
+- epochs = number of cycles through data
+- ratio = multiplies the weights
+###### Example
+`perceptron.py train.csv test.csv standard_perceptron 10 0.01`
