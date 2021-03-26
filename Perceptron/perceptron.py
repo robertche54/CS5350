@@ -1,5 +1,6 @@
-import random
 import math
+import random
+import sys
 
 data = []
 
@@ -68,8 +69,25 @@ def voted_perceptron(epochs, r, weights = None):
     return votes
 
 def averaged_perceptron(epochs, r, weights = None):
-
-    pass
+    y = len(data[0])-1
+    if weights is None:
+        weights = [0] * y
+    average = [0] *  y
+    while epochs != 0:
+        for i in range(len(data)):
+            # prediction = weights[y]
+            prediction = 0
+            for j in range(y):
+                prediction += data[i][j] * weights[j]
+            if prediction * data[i][y] <= 0:
+                for j in range(y):
+                    weights[j] += r * data[i][y] * data[i][j]
+            for j in range(y):
+                average[j] += weights[j]
+            pass
+        epochs -= 1
+        pass
+    return average
 
 def voted_test(votes):
     acc = 0
@@ -97,19 +115,27 @@ def test(weights):
         pass
     return acc/len(data)
 
-def main():
-    # read("Perceptron/train.csv")
-    # weights = standard_perceptron(10, 0.01)
-    # print(weights)
-    # read("Perceptron/test.csv")
-    # print(test(weights))
-
-    read("Perceptron/train.csv")
-    weights = voted_perceptron(10, 0.01)
-    for line in weights:
-        print(line)
-    read("Perceptron/test.csv")
-    print(voted_test(weights))
+def main(argv):
+    read(argv[1])
+    weights = []
+    if argv[3] == "standard_perceptron":
+        weights = standard_perceptron(argv[4], argv[5])
+        read(argv[2])
+        print(weights)
+        print(test(weights))
+    elif argv[3] == "averaged_perceptron":
+        weights = averaged_perceptron(argv[4], argv[5])
+        read(argv[2])
+        print(weights)
+        print(test(weights))
+    elif argv[3] == "voted_perceptron":
+        weights = voted_perceptron(argv[4], argv[5])
+        for line in weights:
+            print(line)
+        read(argv[2])
+        print(voted_test(weights))
     pass
 
-main()
+if __name__ == "__main__":
+    # argv = ["perceptron.py", "Perceptron/train.csv", "Perceptron/test.csv", "standard_perceptron", 10, 0.01]
+    main(sys.argv)
