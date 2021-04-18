@@ -2,8 +2,8 @@ import pandas as pd
 import sklearn.linear_model
 from sklearn.impute import SimpleImputer
 from sklearn.preprocessing import LabelEncoder
-from sklearn.ensemble import RandomForestClassifier
 from sklearn.preprocessing import KBinsDiscretizer
+from sklearn.ensemble import RandomForestClassifier
 
 def preprocess(data):
 
