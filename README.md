@@ -49,3 +49,17 @@ perceptron.py training_data.csv testing_data.csv mode epochs ratio
 - ratio = multiplies the weights
 ###### Example
 `perceptron.py train.csv test.csv standard_perceptron 10 0.01`
+
+## SVM
+
+training_data.csv and testing_data.csv should be in the same directory as svm.py <br />
+```
+svm.py training_data.csv testing_data.csv primal_svm C epochs gamma d
+svm.py training_data.csv testing_data.csv dual_svm C 
+```
+- epochs = number of cycles through data
+- gamma = part of learning rate
+- d = part of learning rate, set to 0 for optional
+###### Example
+`svm.py train.csv test.csv primal_svm 100/873 100 0.000001`
+

@@ -1,6 +1,7 @@
 import math
 import copy
 import random
+import sys
 
 from scipy.optimize import minimize, Bounds, NonlinearConstraint
 
@@ -112,19 +113,21 @@ def dual_svm(C, gamma = 0):
     bounds = Bounds([0] * len(data), [C] * len(data))
     constraints = NonlinearConstraint(constraint, 0, 0)
     results = minimize(dual_svm_min, alpha, lookup, method = "SLSQP", 
-                       bounds=bounds, constraints=constraints, options = {'disp' : True})
+                       bounds=bounds, constraints=constraints)
     weights = [0] * y
     for i in range(len(data)):
         for n in range(y):
             # w = sum_i (ai * yi * xi)
-            weights[n] += results[i] * data[i][y] * data[i][n]
+            weights[n] += results.x[i] * data[i][y] * data[i][n]
         pass
     return weights
 
 def main(argv):
     read(argv[1])
-    # weights = primal_svm(100, 700/873, 0.000001)
-    weights = dual_svm(100/873)
+    if (argv[3] == "primal_svm"):
+        weights = primal_svm(int(argv[5]), eval(argv[4]), float(argv[6]), int(argv[7]))
+    elif (argv[3] == "dual_svm"):
+        weights = dual_svm(eval(argv[4]))
     print(weights)
     print("training error " + str(test(weights)))
     read(argv[2])
@@ -132,5 +135,5 @@ def main(argv):
     pass
 
 if __name__ == "__main__":
-    argv = ["svm.py", "SVM/train.csv", "SVM/test.csv"]
-    main(argv)
+    # argv = ["svm.py", "SVM/train.csv", "SVM/test.csv", "primal_svm", "700/873", "100", "0.000001", "0"]
+    main(sys.argv)
