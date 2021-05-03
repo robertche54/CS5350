@@ -63,3 +63,15 @@ svm.py training_data.csv testing_data.csv dual_svm C
 ###### Example
 `svm.py train.csv test.csv primal_svm 100/873 100 0.000001`
 
+## Neural Networks
+
+training_data.csv and testing_data.csv should be in the same directory as nn.py <br />
+```
+nn.py training_data.csv testing_data.csv width
+nn_tensorflow.py training_data.csv testing_data.csv depth width mode
+```
+- width = amount of nodes per hidden layer
+- depth = number of hidden layers
+- mode = activation function, tanh or relu
+###### Example
+`nn_tensorflow.py train.csv test.csv primal_svm 3 5 relu`

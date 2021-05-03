@@ -1,6 +1,7 @@
 # Tensorflow 1.15 is required since 2.0 does not have contrib libraries
 import numpy as np
 import tensorflow as tf
+import sys
 
 def main(argv):
     training_set = tf.contrib.learn.datasets.base.load_csv_without_header(
@@ -20,10 +21,10 @@ def main(argv):
                     activation_fn=argv[5])
     classifier.fit(x=training_set.data, y=training_set.target, steps = 100)
 
-    accuracy_score = classifier.evaluate(x=test_set.data, y=test_set.target)["accuracy"]
-    # train_acc = classifier.evaluate(x=training_set.data, y=training_set.target)["accuracy"]
-    # return str(train_acc) + " & " + str(accuracy_score)
-    print(accuracy_score)
+    test_acc = classifier.evaluate(x=test_set.data, y=test_set.target)["accuracy"]
+    train_acc = classifier.evaluate(x=training_set.data, y=training_set.target)["accuracy"]
+    print("training accuracy, testing accuracy")
+    print(str(train_acc) + ", " + str(test_acc))
     pass
 
 if __name__ == "__main__":
@@ -36,6 +37,6 @@ if __name__ == "__main__":
     #    pass
     #for s in to_print:
     #    print(s)
-    argv = ["nn_tensorflow.py","NeuralNetworks/train.csv","NeuralNetworks/test.csv", 3, 5, "relu"]
-    main(argv)
+    # argv = ["nn_tensorflow.py","NeuralNetworks/train.csv","NeuralNetworks/test.csv", 3, 5, "relu"]
+    main(sys.argv)
     pass
